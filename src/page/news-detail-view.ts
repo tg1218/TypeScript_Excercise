@@ -1,7 +1,8 @@
 import View from "../core/view";
 import { NewsDetailApi } from "../core/api";
 import { CONTENT_URL } from "../config";
-import { NewsDetail, NewsComment } from "../types";
+import { NewsDetail, NewsComment, NewsStore } from "../types";
+import Store from "../store";
 
 const template = `
   <div class="bg-gray-600 min-h-screen pb-8">
@@ -33,53 +34,48 @@ const template = `
 `;
 
 export default class NewsDetailView extends View {
-    constructor(containerId: string) {
-      const id = location.hash.substr(7);
-      const api = new NewsDetailApi(CONTENT_URL.replace('@id', id));
-      const newsDetail: NewsDetail = api.getData();
-  
-      super(containerId, template);
-      }
-  
-      render(): void {
-        const id = location.hash.substr(7);
-        const api = new NewsDetailApi(CONTENT_URL.replace('@id', id));
-        const newsDetail: NewsDetail = api.getData();
-  
-        for(let i=0; i < window.store.feeds.length; i++) {
-          if (window.store.feeds[i].id === Number(id)) {
-            window.store.feeds[i].read = true;
-            break;
-          }
-        }
-        
-        this.setTemplateData('__currentPage__', String(window.store.currentPage));
-        this.setTemplateData('title', newsDetail.title);
-        this.setTemplateData('content', newsDetail.content);
-        this.setTemplateData('comments', this.makeComment(newsDetail.comments));
-  
-        this.updateView();
-      }
-  
-      private makeComment(comments: NewsComment[]): string {
-        for(let i = 0; i < comments.length; i++) {
-          const comment: NewsComment = comments[i];
-      
-          this.addHtml(`
-            <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
-              <div class="text-gray-400">
-                <i class="fa fa-sort-up mr-2"></i>
-                <strong>${comment.user}</strong> ${comment.time_ago}
-              </div>
-              <p class="text-gray-700">${comment.content}</p>
-            </div>      
-          `);
-      
-          if (comment.comments.length > 0) {
-            this.addHtml(this.makeComment(comment.comments));
-          }
-        }
-      
-        return this.getHtml();
-      }
+  private store: NewsStore;
+
+  constructor(containerId: string, store: Store) {
+    super(containerId, template);
+    
+    this.store = store;
   }
+  
+  render(): void {
+    const id = location.hash.substr(7);
+    const api = new NewsDetailApi(CONTENT_URL.replace('@id', id));
+    const newsDetail: NewsDetail = api.getData();
+
+    this.store.makeRead(Number(id));
+    
+    this.setTemplateData('__currentPage__', String(this.store.currentPage));
+    this.setTemplateData('title', newsDetail.title);
+    this.setTemplateData('content', newsDetail.content);
+    this.setTemplateData('comments', this.makeComment(newsDetail.comments));
+
+    this.updateView();
+  }
+
+  private makeComment(comments: NewsComment[]): string {
+    for(let i = 0; i < comments.length; i++) {
+      const comment: NewsComment = comments[i];
+  
+      this.addHtml(`
+        <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
+          <div class="text-gray-400">
+            <i class="fa fa-sort-up mr-2"></i>
+            <strong>${comment.user}</strong> ${comment.time_ago}
+          </div>
+          <p class="text-gray-700">${comment.content}</p>
+        </div>      
+      `);
+  
+      if (comment.comments.length > 0) {
+        this.addHtml(this.makeComment(comment.comments));
+      }
+    }
+  
+    return this.getHtml();
+  }
+}
